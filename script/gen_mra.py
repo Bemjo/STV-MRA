@@ -5,6 +5,7 @@
 import sys
 import os
 import re
+import json
 import xml.etree.ElementTree as ET 
 from pathlib import Path
 from copy import deepcopy
@@ -14,7 +15,7 @@ from copy import deepcopy
 
 mame_stvhash_file = sys.argv[1]
 mame_xmlinfo_file = sys.argv[2]
-
+button_name_file = sys.argv[3] if len (sys.argv) > 3 else 'button_overrides.json'
 
 
 hashtree = ET.parse(mame_stvhash_file)
@@ -23,6 +24,15 @@ hashroot = hashtree.getroot()
 
 mamexmltree = ET.parse(mame_xmlinfo_file)
 mameroot = mamexmltree.getroot()
+
+
+button_name_overrides = {}
+if os.path.exists(button_name_file):
+    try:
+        with open(button_name_file) as file:
+            button_name_overrides = json.load(file)
+    except Exception:
+        button_name_overrides = {}
 
 
 
@@ -51,24 +61,22 @@ def add_zero_bytes(romroot, length):
     zelem.text = "00"
     return zelem
 
-def add_buttons(mraroot, button_count=3):
+def add_buttons(mraroot, gamename, button_count=3):
+    global button_name_overrides
     button_names = ["-", "-", "-", "-", "-", "-", "Start", "Coin", "Service", "Test"]
-    button_defaults = ["Start", "Select", "L", "R"]
     button_def_base = ["A","B","X","Y","L","R"]
-
 
     button_def = button_def_base[0:button_count]
     button_def = button_def + ["Start", "Select"]
     if button_count < 5:
         button_def = button_def + ["R,L"]
 
-    
-
-
-
-    for btn_idx in range(min(6,button_count)):
-        button_names[btn_idx] = f'Button {btn_idx+1}'
-
+    name_overrides = button_name_overrides.get(gamename)
+    for btn_idx in range(min(6, button_count)):
+        if name_overrides is not None and len(name_overrides)>btn_idx and name_overrides[btn_idx]:
+            button_names[btn_idx] = name_overrides[btn_idx]
+        else:
+            button_names[btn_idx] = f'Button {btn_idx+1}'
     ET.SubElement(mraroot, "buttons", names=",".join(button_names), default=",".join(button_def))
 
 
@@ -121,7 +129,7 @@ def create_mra_tree(gameinfo, for_region="US"):
     mraroot = create_mra_root(gameinfo.attrib['name'])
     mame_player1 = mameroot.find(f"machine[@name='{gamename}']/input/control")
     num_buttons = int(mame_player1.attrib["buttons"])
-    add_buttons(mraroot, num_buttons)
+    add_buttons(mraroot, gamename, num_buttons)
     add_stv_mode(mraroot, gamename)
     zip_names = []
     zip_names.append(f"{gameinfo.attrib['name']}.zip")

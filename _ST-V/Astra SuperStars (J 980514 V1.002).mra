@@ -1,7 +1,7 @@
 <misterromdescription>
 	<rbf>ST-V</rbf>
 	<setname>astrass</setname>
-	<buttons names="Button 1,Button 2,Button 3,Button 4,Button 5,Button 6,Start,Coin,Service,Test" default="A,B,X,Y,L,R,Start,Select" />
+	<buttons names="L Punch,M Punch,H Punch,L Kick,M Kick,H Kick,Start,Coin,Service,Test" default="A,B,X,Y,L,R,Start,Select" />
 	<rom index="0">
 		<part>11</part>
 	</rom>
