@@ -53,18 +53,12 @@ def add_zero_bytes(romroot, length):
 
 def add_buttons(mraroot, button_count=3):
     button_names = ["-", "-", "-", "-", "-", "-", "Start", "Coin", "Service", "Test"]
-    button_defaults = ["Start", "Select", "L", "R"]
     button_def_base = ["A","B","X","Y","L","R"]
-
 
     button_def = button_def_base[0:button_count]
     button_def = button_def + ["Start", "Select"]
     if button_count < 5:
         button_def = button_def + ["R,L"]
-
-    
-
-
 
     for btn_idx in range(min(6,button_count)):
         button_names[btn_idx] = f'Button {btn_idx+1}'
@@ -104,9 +98,8 @@ def create_mra_root(setname):
 
     return mraroot
 
-def add_eeprom(mraroot, gamename, zip_files):
-    global mameroot
-    mame_nvs = mameroot.find(f"machine[@name='{gamename}']/rom[@region='eeprom']")
+def add_eeprom(mraroot, machine_root, zip_files):
+    mame_nvs = machine_root.find(f"rom[@region='eeprom']")
     eeprom_elem = add_rom(mraroot, romindex="1", zipfiles=zip_files, address="0x32000000")
     if mame_nvs is not None:
         add_rom_part(eeprom_elem, crc=mame_nvs.attrib['crc'], name=mame_nvs.attrib['name'])
@@ -114,20 +107,32 @@ def add_eeprom(mraroot, gamename, zip_files):
         add_zero_bytes(eeprom_elem, 128)
     return eeprom_elem
 
+def get_machine_buttons(machine_root):
+    input_root = machine_root.find("input")
+
+    num_buttons = 6
+    for player in input_root.iter('control'):
+        btn_cnt = int(player.attrib["buttons"])
+        if btn_cnt > 6:
+            num_buttons = max(btn_cnt, num_buttons)
+        elif btn_cnt < num_buttons:
+            num_buttons = btn_cnt
+
+    return num_buttons
 
 def create_mra_tree(gameinfo, for_region="US"):
     global mameroot
     gamename = gameinfo.attrib['name']
     mraroot = create_mra_root(gameinfo.attrib['name'])
-    mame_player1 = mameroot.find(f"machine[@name='{gamename}']/input/control")
-    num_buttons = int(mame_player1.attrib["buttons"])
+    machine_root = mameroot.find(f"machine[@name='{gamename}']")
+    num_buttons = get_machine_buttons(machine_root)
     add_buttons(mraroot, num_buttons)
     add_stv_mode(mraroot, gamename)
     zip_names = []
     zip_names.append(f"{gameinfo.attrib['name']}.zip")
     if 'cloneof' in gameinfo.attrib:
         zip_names.append(f"{gameinfo.attrib['cloneof']}.zip")
-    add_eeprom(mraroot, gamename=gameinfo.attrib['name'], zip_files=zip_names)
+    add_eeprom(mraroot, machine_root, zip_files=zip_names)
     add_bios(mraroot, region=for_region)
     rom_root = add_rom(mraroot, romindex="3", zipfiles=zip_names, address="0x34000000")
     mra_filename = f'{descnode.text}.mra'
